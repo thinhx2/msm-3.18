@@ -104,7 +104,7 @@
 				qcom,pin-num = <2>;
 				qcom,mode = <4>; /* AIN input */
 				qcom,invert = <1>; /* Enable MPP */
-				qcom,ain-route = <1>; /* AMUX 6 */
+				qcom,ain-route = <3>; /* AMUX 8 */
 				qcom,master-en = <1>;
 				qcom,src-sel = <0>; /* Function constant */
 			};
