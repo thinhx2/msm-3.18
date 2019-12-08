@@ -136,6 +136,11 @@ static struct snd_soc_dai_driver msm8x16_wcd_i2s_dai[];
 /* By default enable the internal speaker boost */
 static bool spkr_boost_en = true;
 
+#ifdef CONFIG_TOWA_PRODUCT
+extern int aw8737_pa_ctrl_gpio;
+int aw8737_pa_mode = 2;
+#endif
+
 #define MSM8X16_WCD_ACQUIRE_LOCK(x) \
 	mutex_lock_nested(&x, SINGLE_DEPTH_NESTING)
 
@@ -2057,6 +2062,52 @@ static int msm8x16_wcd_loopback_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef CONFIG_TOWA_PRODUCT
+static int aw8737_pa_mode_get(struct snd_kcontrol *kcontrol,
+     struct snd_ctl_elem_value *ucontrol)
+{
+    struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+    ucontrol->value.integer.value[0] = aw8737_pa_mode;
+    dev_dbg(codec->dev, "%s: ucontrol->value.integer.value[0] = %ld\n",
+            __func__, ucontrol->value.integer.value[0]);
+
+    return 0;
+}
+
+static int aw8737_pa_mode_set(struct snd_kcontrol *kcontrol,
+    struct snd_ctl_elem_value *ucontrol)
+{
+    int i;
+
+    pr_info("%s: aw8737 set mode: %ld\n",  __func__, ucontrol->value.integer.value[0]);
+    aw8737_pa_mode = ucontrol->value.integer.value[0];
+    switch (aw8737_pa_mode) {
+        case 0:
+             if(gpio_is_valid(aw8737_pa_ctrl_gpio))
+                 gpio_direction_output(aw8737_pa_ctrl_gpio, 0);
+             break;
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+             if(gpio_is_valid(aw8737_pa_ctrl_gpio)) {
+                 msleep(80);
+                 for(i = 0; i < aw8737_pa_mode; i++) {
+                     gpio_direction_output(aw8737_pa_ctrl_gpio, 0);
+                     udelay(2);
+                     gpio_direction_output(aw8737_pa_ctrl_gpio, 1);
+                     udelay(2);
+                 }
+             }
+             break;
+        default:
+             return -EINVAL;
+    }
+
+    return 0;
+}
+#endif
 static int msm8x16_wcd_pa_gain_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -2566,6 +2617,14 @@ static const char * const cf_text[] = {
 	"MIN_3DB_4Hz", "MIN_3DB_75Hz", "MIN_3DB_150Hz"
 };
 
+#ifdef CONFIG_TOWA_PRODUCT
+static const char const *aw8737_pa_mode_text[] = {"DISABLE","MODE_1",
+                    "MODE_2", "MODE_3","MODE_4"};
+static const struct soc_enum aw8737_pa_mode_enum[] = {
+		SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(aw8737_pa_mode_text),
+			aw8737_pa_mode_text),
+};
+#endif
 static const struct soc_enum cf_dec1_enum =
 	SOC_ENUM_SINGLE(MSM8X16_WCD_A_CDC_TX1_MUX_CTL, 4, 3, cf_text);
 
@@ -2603,6 +2662,10 @@ static const struct snd_kcontrol_new msm8x16_wcd_snd_controls[] = {
 
 	SOC_ENUM_EXT("LOOPBACK Mode", msm8x16_wcd_loopback_mode_ctl_enum[0],
 		msm8x16_wcd_loopback_mode_get, msm8x16_wcd_loopback_mode_put),
+#ifdef CONFIG_TOWA_PRODUCT
+       SOC_ENUM_EXT("AW8737 PA Mode", aw8737_pa_mode_enum[0],
+		aw8737_pa_mode_get, aw8737_pa_mode_set),
+#endif
 
 	SOC_SINGLE_TLV("ADC1 Volume", MSM8X16_WCD_A_ANALOG_TX_1_EN, 3,
 					8, 0, analog_gain),

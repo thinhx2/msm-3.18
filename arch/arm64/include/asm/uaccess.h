@@ -144,6 +144,7 @@ static inline void __uaccess_ttbr0_disable(void)
 	write_sysreg(ttbr + SWAPPER_DIR_SIZE, ttbr0_el1);
 	isb();
 	/* Set reserved ASID */
+	ttbr &= ~TTBR_ASID_MASK;
 	write_sysreg(ttbr, ttbr1_el1);
 	isb();
 	local_irq_restore(flags);
@@ -159,7 +160,7 @@ static inline void __uaccess_ttbr0_enable(void)
 	 * roll-over and an update of 'ttbr0'.
 	 */
 	local_irq_save(flags);
-	ttbr0 = READ_ONCE(current_thread_info()->ttbr0);
+	ttbr0 = current_thread_info()->ttbr0;
 
 	/* Restore active ASID */
 	ttbr1 = read_sysreg(ttbr1_el1);
@@ -459,6 +460,7 @@ extern __must_check long strnlen_user(const char __user *str, long n);
 	msr	ttbr0_el1, \tmp1		// set reserved TTBR0_EL1
 	isb
 	sub	\tmp1, \tmp1, #SWAPPER_DIR_SIZE
+	bic	\tmp1, \tmp1, #TTBR_ASID_MASK
 	msr	ttbr1_el1, \tmp1		// set reserved ASID
 	isb
 	.endm

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1087,6 +1087,33 @@ static ssize_t qpnp_hap_wf_update_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", hap->wf_update);
 }
 
+
+static ssize_t qpnp_hap_wf_update_now_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count) {
+	struct timed_output_dev *timed_dev = dev_get_drvdata(dev);
+	struct qpnp_hap *hap = container_of(timed_dev, struct qpnp_hap,
+					 timed_dev);
+	int rc, i;
+	u8 reg;
+	mutex_lock(&hap->wf_lock);
+
+	hap->wf_update = true;
+	/* Configure WAVE_SAMPLE1 to WAVE_SAMPLE8 register */
+	for (i = 0; i < QPNP_HAP_WAV_SAMP_LEN && hap->wf_update; i++) {
+		reg = hap->wave_samp[i] = hap->shadow_wave_samp[i];
+		rc = qpnp_hap_write_reg(hap, &reg,
+			QPNP_HAP_WAV_S_REG_BASE(hap->base) + i);
+		if (rc)
+			goto unlock;
+	}
+	hap->wf_update = false;
+
+unlock:
+	mutex_unlock(&hap->wf_lock);
+	return count;
+
+}
+
 /* sysfs store for updating wave samples */
 static ssize_t qpnp_hap_wf_update_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -1408,6 +1435,9 @@ static struct device_attribute qpnp_hap_attrs[] = {
 	__ATTR(wf_update, (S_IRUGO | S_IWUSR | S_IWGRP),
 			qpnp_hap_wf_update_show,
 			qpnp_hap_wf_update_store),
+	__ATTR(wf_update_now, (S_IRUGO | S_IWUSR | S_IWGRP),
+			NULL,
+			qpnp_hap_wf_update_now_store),
 	__ATTR(wf_rep, (S_IRUGO | S_IWUSR | S_IWGRP),
 			qpnp_hap_wf_rep_show,
 			qpnp_hap_wf_rep_store),
@@ -2651,16 +2681,6 @@ static int qpnp_haptic_remove(struct spmi_device *spmi)
 	return 0;
 }
 
-static void qpnp_haptic_shutdown(struct spmi_device *spmi)
-{
-	struct qpnp_hap *hap = dev_get_drvdata(&spmi->dev);
-
-	cancel_work_sync(&hap->work);
-
-	/* disable haptics */
-	qpnp_hap_mod_enable(hap, false);
-}
-
 static struct of_device_id spmi_match_table[] = {
 	{ .compatible = "qcom,qpnp-haptic", },
 	{ },
@@ -2674,7 +2694,6 @@ static struct spmi_driver qpnp_haptic_driver = {
 	},
 	.probe		= qpnp_haptic_probe,
 	.remove		= qpnp_haptic_remove,
-	.shutdown	= qpnp_haptic_shutdown,
 };
 
 static int __init qpnp_haptic_init(void)
