@@ -93,7 +93,6 @@ obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_RMI4_DEV)	+= synaptics_rmi_dev.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE) 	+= synaptics_fw_update.o
 obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
 obj-$(CONFIG_TOUCHSCREEN_HIMAX_CHIPSET)	+= hxchipset/
-obj-$(CONFIG_TOUCHSCREEN_FTS)		+= focaltech_touch/
 obj-$(CONFIG_TOUCHSCREEN_FT5X06)	+= lct_tp_fm_info.o
 obj-$(CONFIG_TOUCHSCREEN_FT5X06)	+= lct_ctp_selftest.o
 obj-$(CONFIG_TOUCHSCREEN_FT5X06)	+= lct_ctp_upgrade.o
